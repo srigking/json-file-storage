@@ -15,13 +15,23 @@ class JsonFileHandler():
                 pass
 
 
-    def write(self, key, value, expire_at=0):
+    def create(self, key, value, expire_at=0):
         """
         TODO
         key: Key value to store the JSON object
         value: JSON object
         expire_at: 0 in sec
         """
+
+        if self.is_exist(key):
+            return "Key already exist"
+        
+        if not isinstance(value, str) or len(value) < 1:
+            return "Parameter of value should be string and can not be empty"
+        
+        if not isinstance(key, str) or len(key) < 1:
+            return "Parameter of key should be string and can not be empty"
+
         input = {
             'data': value,
             'info': {
@@ -30,12 +40,13 @@ class JsonFileHandler():
             }
         }
         data = "'{}':{}".format(key, json.dumps(input, separators=(',', ':')))
+
         with open(self.file_location, 'a') as fd:
             fd.write(f'{data}\n')
         return True
 
     def read(self, key):
-        searchkey = "'{}':".format(key) # To compare only the key
+        searchkey = self.generate_search_key(key) # To compare only the key
         
         with open(self.file_location, 'r') as fd:
             while True: # Read line by line
@@ -55,7 +66,7 @@ class JsonFileHandler():
         key_status = "Key not exist"
 
         with open(self.file_location, 'w') as fd:
-            searchkey = "'{}':".format(key) # To compare only the key
+            searchkey = self.generate_search_key(key) # To compare only the key
             for line in file_data:
                 if line.startswith(searchkey, 0):
                     obj = json.loads(line.rsplit(searchkey)[1])
@@ -67,14 +78,27 @@ class JsonFileHandler():
                         key_status = "Deleted successfully"
                 else:
                     fd.write(line)
-                    
-                
         return key_status
 
 
     def read_file(self):
         with open(self.file_location, 'r') as fd:
             return fd.readlines()
+
+    def is_exist(self, key):
+        searchkey = self.generate_search_key(key)
+        with open(self.file_location, 'r') as fd:
+            while True: # Read line by line
+                line = fd.readline()
+                if not line:
+                    break
+                if line.startswith(searchkey, 0):
+                    return True
+        
+        return False
+    
+    def generate_search_key(self, key):
+        return "'{}':".format(key)
 
 
     def is_expired(self, info):
