@@ -16,11 +16,17 @@ class JsonFileHandler():
 
 
     def write(self, key, value, expire_at=0):
+        """
+        TODO
+        key: Key value to store the JSON object
+        value: JSON object
+        expire_at: 0 in sec
+        """
         input = {
             'data': value,
             'info': {
                 'timestamp': time.time(),
-                'expire_at': expire_at
+                'expire_at': expire_at # in secs
             }
         }
         data = "'{}':{}".format(key, json.dumps(input, separators=(',', ':')))
@@ -29,23 +35,47 @@ class JsonFileHandler():
         return True
 
     def read(self, key):
-        searchkey = "'{}':".format(key)
+        searchkey = "'{}':".format(key) # To compare only the key
         
-        with open(self.file_location, 'r') as rfd:
-            while True:
-                line = rfd.readline()
+        with open(self.file_location, 'r') as fd:
+            while True: # Read line by line
+                line = fd.readline()
                 if not line:
                     break
                 if line.startswith(searchkey, 0):
                     obj = json.loads(line.rsplit(searchkey)[1])
                     if self.is_expired(obj['info']):
-                        return "Requested data expired"
+                        return "Requested key expired"
                     
                     return obj['data']
             return "Key not found"
 
     def delete (self, key):
-        pass
+        file_data = self.read_file()
+        key_status = "Key not exist"
+
+        with open(self.file_location, 'w') as fd:
+            searchkey = "'{}':".format(key) # To compare only the key
+            for line in file_data:
+                if line.startswith(searchkey, 0):
+                    obj = json.loads(line.rsplit(searchkey)[1])
+                    if self.is_expired(obj['info']):
+                        # Once the TTL for a key has expired, the key will no longer be available for Read or Delete operations.
+                        fd.write(line) 
+                        key_status = "Requested key expired"
+                    else:
+                        key_status = "Deleted successfully"
+                else:
+                    fd.write(line)
+                    
+                
+        return key_status
+
+
+    def read_file(self):
+        with open(self.file_location, 'r') as fd:
+            return fd.readlines()
+
 
     def is_expired(self, info):
         if info['expire_at'] is 0:

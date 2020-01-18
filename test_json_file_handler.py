@@ -30,8 +30,16 @@ class TestJsonFileHandler(unittest.TestCase):
         self.jfh.write('testexpire', '{"Hello": "World"}', 1)
         time.sleep(1)
         result = self.jfh.read('testexpire')
-        self.assertEqual(result, 'Requested data expired')
+        self.assertEqual(result, 'Requested key expired')
 
     def test_delete(self):
-        self.assertTrue(self.jfh.delete('test'))
+        self.jfh.write('deletetest', '{"Hello": "World"}')
+        self.assertEqual(self.jfh.delete('deletetest'), "Deleted successfully")
+
+        self.assertEqual(self.jfh.delete('keynotexist'), "Key not exist")
+        
+        self.jfh.write('keyexpired', '{"Hello": "World"}', 1)
+        time.sleep(1)
+        self.assertEqual(self.jfh.delete('keyexpired'), "Requested key expired")
+
         pass

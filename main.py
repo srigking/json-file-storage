@@ -22,3 +22,4 @@ data = json.loads(json_string)
 
 jfh.write('test', json_string, 1)
 print(jfh.read('test'))
+jfh.delete('test')
