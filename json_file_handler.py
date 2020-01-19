@@ -3,6 +3,9 @@ import threading
 import os
 import json
 import time
+from file_lock import FileLock
+
+file = FileLock()
 
 class JsonFileHandler():
     """
@@ -13,11 +16,14 @@ class JsonFileHandler():
     file_location : str
         Location of the file. A new file will be created if the given file not exist.
         Default location is current directory with the file name `data.txt`
+    debug : boolean
+        Enable or disable debug messages. Default is False
     """
 
-    def __init__(self, file_location='data.txt'):
-        self.lock = threading.Lock()
+    def __init__(self, file_location='data.txt', debug = False):
+        # self.lock = threading.Lock()
         self.file_location = file_location
+        self._debug = debug
 
         # Check the file exist
         if not os.path.exists(self.file_location):
@@ -38,8 +44,9 @@ class JsonFileHandler():
         ----------
         key : str
             Key value to store the JSON object
+            The minimum length is 1 and maximum length is 32
         value : str
-            Body of the JSON object
+            Body of the JSON object. The maximum allowed size of the JSON object is 16 KB
         expire_at : int
             The key will no longer can be read or delete. 
             If the value is 0, the key will not expire
@@ -54,9 +61,17 @@ class JsonFileHandler():
         
         if not isinstance(value, str) or len(value) < 1:
             return "Parameter of value should be string and can not be empty"
+
+        if len(value.encode('utf-8')) > 16000: # more than 16 KB
+            return "The max size of the value is 16 KB"
+
         
-        if not isinstance(key, str) or len(key) < 1:
-            return "Parameter of key should be string and can not be empty"
+        if not isinstance(key, str):
+            return "Data type of key should be string"
+
+        if len(key) < 1 or len(key) > 32:
+            return "The min and max length of the key parameter are 1 to 32"
+
 
         input = {
             'data': value,
@@ -67,12 +82,25 @@ class JsonFileHandler():
         }
         data = "'{}':{}".format(key, json.dumps(input, separators=(',', ':')))
 
-        with self.lock:
+        if self._debug:
+            print('Create: waiting lock name: {}'.format(threading.current_thread().name))
+
+        with file.write_locked():
+            if self._debug:
+                print('Create: lock acquired name: {}'.format(threading.current_thread().name))
+
+            if (os.path.getsize(self.file_location)/(1024*1024.0)) > 1023: # 1023 - this will prevent by not reaching 1 GB file
+                return "Maximum 1 GB file size reached"
+
             if self.is_exist(key):
                 return "Key already exist"
 
             with open(self.file_location, 'a') as fd:
                 fd.write(f'{data}\n')
+
+                if self._debug:
+                    print('Create: lock released name: {}'.format(threading.current_thread().name))
+
                 return "Created successfully"
             return "Failed to create"
 
@@ -94,12 +122,23 @@ class JsonFileHandler():
 
         """
         searchkey = self.generate_search_key(key) # To compare only the key
-        with self.lock:
+
+        if self._debug:
+            print('Read: waiting lock name: {}'.format(threading.current_thread().name))
+
+        with file.read_locked():
+            if self._debug:
+                print('Read: lock acquired name: {}'.format(threading.current_thread().name))
+
             line = self.search(searchkey)
             if line:
                 obj = json.loads(line.rsplit(searchkey)[1])
                 if self.is_expired(obj['info']):
                     return "Requested key expired"
+                
+                if self._debug:
+                    print('Read: lock released name: {}'.format(threading.current_thread().name))
+
                 return obj['data']
             return "Key not found"
 
@@ -121,7 +160,12 @@ class JsonFileHandler():
             If the given key time expired, the function returns `Requested key expired`
 
         """
-        with self.lock:
+        if self._debug:
+            print('Delete: waiting lock name: {}'.format(threading.current_thread().name))
+        with file.write_locked():
+            if self._debug:
+                print('Delete: lock acquired name: {}'.format(threading.current_thread().name))
+
             file_data = self.read_file()
             key_status = "Key not exist"
 
@@ -135,6 +179,9 @@ class JsonFileHandler():
                             fd.write(line) 
                             key_status = "Requested key expired"
                         else:
+                            if self._debug:
+                                print('Delete: lock released name: {}'.format(threading.current_thread().name))
+
                             key_status = "Deleted successfully"
                     else:
                         fd.write(line)
