@@ -12,7 +12,7 @@ class TestJsonFileHandler(unittest.TestCase):
 
     def test_create(self):
         result = self.jfh.create('unittest', '{"Hello": "World"}')
-        self.assertTrue(result)
+        self.assertEqual(result, 'Created successfully')
 
         result = self.jfh.create('unittest', '{"Hello": "World"}')
         self.assertEqual(result, 'Key already exist')
@@ -52,5 +52,3 @@ class TestJsonFileHandler(unittest.TestCase):
         self.jfh.create('keyexpired', '{"Hello": "World"}', 1)
         time.sleep(1)
         self.assertEqual(self.jfh.delete('keyexpired'), "Requested key expired")
-
-        pass
