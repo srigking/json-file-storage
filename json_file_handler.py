@@ -5,13 +5,24 @@ import json
 import time
 
 class JsonFileHandler():
+    """
+    Create, read and delete JSON object from a file.
+
+    Parameters
+    ----------
+    file_location : str
+        Location of the file. A new file will be created if the given file not exist.
+        Default location is current directory with the file name `data.txt`
+    """
 
     def __init__(self, file_location='data.txt'):
         self.lock = threading.Lock()
         self.file_location = file_location
 
+        # Check the file exist
         if not os.path.exists(self.file_location):
             try:
+                # Create file if not exist
                 fd = open(self.file_location, 'w')
                 fd.close()
             except:
@@ -21,12 +32,25 @@ class JsonFileHandler():
 
     def create(self, key, value, expire_at=0):
         """
-        TODO
-        key: Key value to store the JSON object
-        value: JSON object
-        expire_at: 0 in sec
+        This function store the JSON object with the given `key` `value` pair.
+
+        Parameters
+        ----------
+        key : str
+            Key value to store the JSON object
+        value : str
+            Body of the JSON object
+        expire_at : int
+            The key will no longer can be read or delete. 
+            If the value is 0, the key will not expire
+            Default value is 0
+
+        Returns
+        -------
+        str
+            On success, the function returns `Created successfully` message.
+
         """
-        # time.sleep(5)
         
         if not isinstance(value, str) or len(value) < 1:
             return "Parameter of value should be string and can not be empty"
@@ -53,6 +77,22 @@ class JsonFileHandler():
             return "Failed to create"
 
     def read(self, key):
+        """
+        This function find and get the JSON object by using the given `key`.
+
+        Parameters
+        ----------
+        key : str
+            Key of JSON object
+
+        Returns
+        -------
+        str
+            On success, the function returns the JSON object.
+            If the given key not in the file, the function returns `Key not found`
+            If the given key time expired, the function returns `Requested key expired`
+
+        """
         searchkey = self.generate_search_key(key) # To compare only the key
         with self.lock:
             line = self.search(searchkey)
@@ -64,6 +104,23 @@ class JsonFileHandler():
             return "Key not found"
 
     def delete (self, key):
+        """
+        This function delete the JSON object by using the given `key`.
+        If the given key is expired, the function will not allow to delete the key.
+
+        Parameters
+        ----------
+        key : str
+            Key of JSON object
+
+        Returns
+        -------
+        str
+            On success, the function returns `Deleted successfully` message.
+            If the given key not in the file, the function returns `Key not exist`
+            If the given key time expired, the function returns `Requested key expired`
+
+        """
         with self.lock:
             file_data = self.read_file()
             key_status = "Key not exist"
@@ -87,6 +144,7 @@ class JsonFileHandler():
     def read_file(self):
         with open(self.file_location, 'r') as fd:
             return fd.readlines()
+        return None
 
     def is_exist(self, key):
         searchkey = self.generate_search_key(key)
