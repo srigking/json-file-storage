@@ -1,5 +1,4 @@
 import json_file_handler
-import json
 
 jfh = json_file_handler.JsonFileHandler()
 
