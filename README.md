@@ -1,4 +1,4 @@
-# Freshworks - File Storage
+# File Storage
 
 ## Requirements
 
